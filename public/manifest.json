@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "SoundCloud Resume Player",
+  "version": "1.0.0",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*.soundcloud.com/*"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.soundcloud.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://*.soundcloud.com/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
