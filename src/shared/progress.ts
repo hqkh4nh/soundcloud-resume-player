@@ -13,11 +13,17 @@ export function isSavedProgress(value: unknown): value is SavedProgress {
     typeof value.trackUrl === 'string' &&
     value.trackUrl.startsWith('/') &&
     value.trackUrl.length > 1 &&
-    Number.isFinite(value.position) &&
-    value.position >= 0 &&
-    Number.isFinite(value.updatedAt) &&
-    value.updatedAt > 0
+    isNonNegativeFinite(value.position) &&
+    isPositiveFinite(value.updatedAt)
   )
+}
+
+function isNonNegativeFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
+function isPositiveFinite(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

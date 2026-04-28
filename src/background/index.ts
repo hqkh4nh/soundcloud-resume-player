@@ -26,12 +26,24 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   }
 
   if (isAudioProgressMessage(message)) {
+    const audioFrame = relayState.getAudioFrame(tabId)
+
+    if (audioFrame?.frameId !== frameId) {
+      sendResponse({ ok: false })
+      return false
+    }
+
     sendTopFrame(tabId, message)
     sendResponse({ ok: true })
     return false
   }
 
   if (isRequestSeekMessage(message)) {
+    if (frameId !== 0) {
+      sendResponse({ ok: false })
+      return false
+    }
+
     const audioFrame = relayState.getAudioFrame(tabId)
 
     if (!audioFrame) {
@@ -64,7 +76,10 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   relayState.clearTab(tabId)
 })
 
-function sendTopFrame(tabId: number, message: RuntimeMessage) {
+function sendTopFrame(
+  tabId: number,
+  message: Extract<RuntimeMessage, { type: typeof runtimeMessageType.audioFrameReady | typeof runtimeMessageType.audioProgress }>,
+) {
   chrome.tabs.sendMessage(tabId, message, { frameId: 0 }, () => {
     void chrome.runtime.lastError
   })
