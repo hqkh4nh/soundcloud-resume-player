@@ -48,6 +48,8 @@ function patchAudio() {
   }
 
   function emitProgress(audio: HTMLAudioElement, force = false) {
+    if (audio !== activeAudio) return
+
     const now = Date.now()
     if (!force && now - lastProgressEmit < progressEmitIntervalMs) return
     if (!Number.isFinite(audio.currentTime) || audio.currentTime < 0) return
@@ -63,6 +65,7 @@ function patchAudio() {
     startedAt: number,
   ) {
     if (!audio) return
+    if (audio !== activeAudio) return
 
     if (audio.readyState > 0) {
       audio.currentTime = clampPosition(position, audio.duration)
