@@ -20,6 +20,7 @@ dist-ssr
 # Local agent/planning artifacts
 .codex
 .superpowers/
+.worktrees/
 docs/superpowers/
 
 # Local SoundCloud reference snapshots
