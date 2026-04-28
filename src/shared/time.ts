@@ -1,5 +1,5 @@
 export function formatPosition(seconds: number): string {
-  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0
   const hours = Math.floor(safeSeconds / 3600)
   const minutes = Math.floor((safeSeconds % 3600) / 60)
   const remainingSeconds = safeSeconds % 60
