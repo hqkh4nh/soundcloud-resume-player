@@ -1,23 +1,32 @@
 {
   "manifest_version": 3,
-  "name": "SoundCloud Resume Player",
+  "name": "__MSG_extensionName__",
+  "description": "__MSG_extensionDescription__",
   "version": "1.0.0",
+  "default_locale": "en",
   "permissions": ["storage"],
   "host_permissions": ["*://*.soundcloud.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "__MSG_extensionName__"
   },
   "content_scripts": [
     {
       "matches": ["*://*.soundcloud.com/*"],
       "js": ["content.js"],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     },
     {
       "matches": ["*://*.soundcloud.com/*"],
       "js": ["inject.js"],
       "run_at": "document_start",
-      "world": "MAIN"
+      "world": "MAIN",
+      "all_frames": true
     }
   ]
 }
