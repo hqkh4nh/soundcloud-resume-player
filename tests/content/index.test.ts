@@ -21,6 +21,7 @@ describe('content bridge', () => {
 
     vi.stubGlobal('chrome', {
       runtime: {
+        id: 'test-extension-id',
         sendMessage: vi.fn((message: unknown) => {
           runtimeMessages.push(message)
           return Promise.resolve({ ok: true })
@@ -30,6 +31,10 @@ describe('content bridge', () => {
             runtimeListener = handler
           }),
         },
+      },
+      storage: {
+        sync: { get: vi.fn().mockResolvedValue({}) },
+        local: { get: vi.fn().mockResolvedValue({}), set: vi.fn().mockResolvedValue(undefined) },
       },
     })
 
@@ -120,5 +125,54 @@ describe('content bridge', () => {
     )
 
     expect(runtimeMessages.at(-1)).toEqual({ type: runtimeMessageType.audioCaptured })
+  })
+
+  it('stops forwarding page events after the extension context is invalidated', async () => {
+    await import('../../src/content/index')
+
+    // Simulate Chrome reloading/updating the extension while the page keeps firing
+    // audio events: chrome.runtime.id becomes undefined, and any subsequent
+    // sendMessage call would throw "Extension context invalidated."
+    ;(chrome.runtime as unknown as { id: string | undefined }).id = undefined
+
+    const before = runtimeMessages.length
+    window.dispatchEvent(
+      new CustomEvent('soundcloud-resume-player:audio-event', {
+        detail: { kind: 'progress', position: 42, important: true },
+      }),
+    )
+    window.dispatchEvent(
+      new CustomEvent('soundcloud-resume-player:audio-event', {
+        detail: { kind: 'captured' },
+      }),
+    )
+
+    expect(runtimeMessages.length).toBe(before)
+  })
+
+  it('survives a synchronous throw from sendMessage by detaching the listener', async () => {
+    const sendMessageSpy = chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>
+    sendMessageSpy.mockImplementationOnce(() => {
+      throw new Error('Extension context invalidated.')
+    })
+
+    await import('../../src/content/index')
+
+    expect(() =>
+      window.dispatchEvent(
+        new CustomEvent('soundcloud-resume-player:audio-event', {
+          detail: { kind: 'progress', position: 1, important: false },
+        }),
+      ),
+    ).not.toThrow()
+
+    const afterFirst = runtimeMessages.length
+    window.dispatchEvent(
+      new CustomEvent('soundcloud-resume-player:audio-event', {
+        detail: { kind: 'progress', position: 2, important: false },
+      }),
+    )
+
+    expect(runtimeMessages.length).toBe(afterFirst)
   })
 })

@@ -1,17 +1,38 @@
 import { isSavedProgress, progressStorageKey, type SavedProgress } from '../shared/progress'
-import { mergeSettings, settingsStorageKey, type ResumeSettings } from '../shared/settings'
+import {
+  defaultSettings,
+  mergeSettings,
+  settingsStorageKey,
+  type ResumeSettings,
+} from '../shared/settings'
+import { isExtensionContextValid } from './extensionContext'
 
 export async function loadSettings(): Promise<ResumeSettings> {
-  const data = await chrome.storage.sync.get(settingsStorageKey)
-  return mergeSettings(data[settingsStorageKey])
+  if (!isExtensionContextValid()) return defaultSettings
+  try {
+    const data = await chrome.storage.sync.get(settingsStorageKey)
+    return mergeSettings(data[settingsStorageKey])
+  } catch {
+    return defaultSettings
+  }
 }
 
 export async function loadProgress(): Promise<SavedProgress | null> {
-  const data = await chrome.storage.local.get(progressStorageKey)
-  const value = data[progressStorageKey]
-  return isSavedProgress(value) ? value : null
+  if (!isExtensionContextValid()) return null
+  try {
+    const data = await chrome.storage.local.get(progressStorageKey)
+    const value = data[progressStorageKey]
+    return isSavedProgress(value) ? value : null
+  } catch {
+    return null
+  }
 }
 
 export async function saveProgress(progress: SavedProgress): Promise<void> {
-  await chrome.storage.local.set({ [progressStorageKey]: progress })
+  if (!isExtensionContextValid()) return
+  try {
+    await chrome.storage.local.set({ [progressStorageKey]: progress })
+  } catch {
+    // Context invalidated mid-flight (extension reload/update). Drop the write.
+  }
 }
