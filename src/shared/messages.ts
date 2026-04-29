@@ -21,6 +21,7 @@ export type AudioCapturedMessage = {
 export type AudioProgressMessage = {
   type: typeof runtimeMessageType.audioProgress
   position: number
+  important?: boolean
 }
 
 export type AudioFrameReadyMessage = {
@@ -51,7 +52,11 @@ export function isAudioCapturedMessage(value: unknown): value is AudioCapturedMe
 }
 
 export function isAudioProgressMessage(value: unknown): value is AudioProgressMessage {
-  return isRecord(value) && value.type === runtimeMessageType.audioProgress && isNonNegativeFinite(value.position)
+  if (!isRecord(value)) return false
+  if (value.type !== runtimeMessageType.audioProgress) return false
+  if (!isNonNegativeFinite(value.position)) return false
+  if (value.important !== undefined && typeof value.important !== 'boolean') return false
+  return true
 }
 
 export function isAudioFrameReadyMessage(value: unknown): value is AudioFrameReadyMessage {

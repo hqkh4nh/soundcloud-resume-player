@@ -309,6 +309,44 @@ describe('top coordinator', () => {
     })
   })
 
+  it('saves important progress events even within the throttle window', async () => {
+    const sendSeek = vi.fn().mockResolvedValue(true)
+    const saveProgress = vi.fn().mockResolvedValue(undefined)
+    const now = vi
+      .fn<() => number>()
+      .mockReturnValueOnce(1777377605000)
+      .mockReturnValueOnce(1777377606000)
+    const coordinator = createTopCoordinator({
+      readCurrentTrackUrl: () => '/artist/track',
+      loadSettings: async () => ({
+        saveProgress: true,
+        resumeOnlySameTrack: true,
+        forceOldTrack: false,
+        autoPlayAfterResume: false,
+        debug: false,
+      }),
+      loadProgress: async () => ({
+        trackUrl: '/artist/track',
+        position: 87,
+        updatedAt: 1777377600000,
+      }),
+      saveProgress,
+      sendSeek,
+      now,
+    })
+
+    await coordinator.onAudioFrameReady()
+    await coordinator.onAudioProgress(3)
+    await coordinator.onAudioProgress(4, true)
+
+    expect(saveProgress).toHaveBeenCalledTimes(2)
+    expect(saveProgress).toHaveBeenLastCalledWith({
+      trackUrl: '/artist/track',
+      position: 4,
+      updatedAt: 1777377606000,
+    })
+  })
+
   it('does not log coordinator decisions when debug is disabled', async () => {
     const logger = vi.fn()
     const coordinator = createTopCoordinator({

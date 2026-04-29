@@ -38,16 +38,16 @@ function patchAudio() {
     if (!captured.has(audio)) {
       captured.add(audio)
       audio.addEventListener('timeupdate', () => emitProgress(audio))
-      audio.addEventListener('seeked', () => emitProgress(audio, true))
-      audio.addEventListener('pause', () => emitProgress(audio, true))
-      audio.addEventListener('loadedmetadata', () => emitProgress(audio, true))
+      audio.addEventListener('seeked', () => emitProgress(audio, true, true))
+      audio.addEventListener('pause', () => emitProgress(audio, true, true))
+      audio.addEventListener('loadedmetadata', () => emitProgress(audio, true, true))
     }
 
     emitPageEvent({ kind: pageEventKind.captured })
-    emitProgress(audio, true)
+    emitProgress(audio, true, true)
   }
 
-  function emitProgress(audio: HTMLAudioElement, force = false) {
+  function emitProgress(audio: HTMLAudioElement, force = false, important = false) {
     if (audio !== activeAudio) return
 
     const now = Date.now()
@@ -55,7 +55,11 @@ function patchAudio() {
     if (!Number.isFinite(audio.currentTime) || audio.currentTime < 0) return
 
     lastProgressEmit = now
-    emitPageEvent({ kind: pageEventKind.progress, position: audio.currentTime })
+    emitPageEvent({
+      kind: pageEventKind.progress,
+      position: audio.currentTime,
+      important,
+    })
   }
 
   function seekWhenReady(

@@ -55,6 +55,7 @@ window.addEventListener(pageEventName, (event) => {
     void chrome.runtime.sendMessage({
       type: runtimeMessageType.audioProgress,
       position: detail.position,
+      important: detail.important === true,
     })
   }
 })
@@ -66,7 +67,7 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
   }
 
   if (isTopFrame && coordinator && isAudioProgressMessage(message)) {
-    ignoreCoordinatorRejection(coordinator.onAudioProgress(message.position))
+    ignoreCoordinatorRejection(coordinator.onAudioProgress(message.position, message.important))
     return
   }
 

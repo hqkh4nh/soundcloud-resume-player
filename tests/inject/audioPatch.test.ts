@@ -72,8 +72,30 @@ describe('audio patch script', () => {
       .map((event) => event.detail)
       .filter((detail) => detail.kind === 'progress')
 
-    expect(progressEvents).toContainEqual({ kind: 'progress', position: 17 })
-    expect(progressEvents).not.toContainEqual({ kind: 'progress', position: 91 })
+    expect(progressEvents).toContainEqual({ kind: 'progress', position: 17, important: true })
+    expect(progressEvents).not.toContainEqual({ kind: 'progress', position: 91, important: true })
+  })
+
+  it('marks pause-driven progress events as important', async () => {
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+
+    await import('../../src/inject/index')
+
+    const audio = document.createElement('audio')
+    Object.defineProperty(audio, 'currentTime', { configurable: true, value: 42 })
+
+    await audio.play()
+    audio.dispatchEvent(new Event('pause'))
+
+    const progressEvents = events
+      .map((event) => event.detail)
+      .filter((detail) => detail.kind === 'progress')
+
+    expect(progressEvents.at(-1)).toEqual({
+      kind: 'progress',
+      position: 42,
+      important: true,
+    })
   })
 
   it('does not seek a stale retry target after another audio becomes active', async () => {

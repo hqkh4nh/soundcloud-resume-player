@@ -122,14 +122,14 @@ export function createTopCoordinator(dependencies: Dependencies) {
       audioReady = true
       await ensureResumeSettled()
     },
-    async onAudioProgress(position: number) {
+    async onAudioProgress(position: number, important?: boolean) {
       if (!resumeSettled) {
         pendingPosition = position
         await ensureResumeSettled()
         return
       }
 
-      await saveLatestPosition(position)
+      await saveLatestPosition(position, important === true)
     },
   }
 }

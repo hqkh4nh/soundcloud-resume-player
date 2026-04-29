@@ -31,4 +31,30 @@ describe('runtime messages', () => {
     ).toBe(true)
     expect(isRequestSeekMessage({ type: runtimeMessageType.requestSeek, position: Number.NaN })).toBe(false)
   })
+
+  it('accepts audioProgress with optional important flag', () => {
+    expect(
+      isAudioProgressMessage({
+        type: runtimeMessageType.audioProgress,
+        position: 12,
+        important: true,
+      }),
+    ).toBe(true)
+    expect(
+      isAudioProgressMessage({
+        type: runtimeMessageType.audioProgress,
+        position: 12,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects audioProgress with non-boolean important', () => {
+    expect(
+      isAudioProgressMessage({
+        type: runtimeMessageType.audioProgress,
+        position: 12,
+        important: 'yes',
+      }),
+    ).toBe(false)
+  })
 })
