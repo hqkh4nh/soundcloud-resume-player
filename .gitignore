@@ -21,6 +21,7 @@ dist-ssr
 .codex
 .superpowers/
 .worktrees/
+.claude/settings.local.json
 docs/superpowers/
 
 # Local SoundCloud reference snapshots
