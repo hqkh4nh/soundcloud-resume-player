@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PopupState } from '../../src/popup/popupStorage'
@@ -40,14 +40,19 @@ describe('Popup', () => {
   })
 
   it('keeps controls disabled when storage loading fails', async () => {
-    popupStorage.loadPopupState.mockRejectedValue(new Error('storage unavailable'))
+    const failed = createDeferred<PopupState>()
+    popupStorage.loadPopupState.mockReturnValue(failed.promise)
 
     render(<Popup />)
 
     const saveProgress = screen.getByRole('checkbox', { name: 'saveProgress' })
     const advanced = screen.getByRole('button', { name: /advanced/ })
 
-    await waitFor(() => expect(popupStorage.loadPopupState).toHaveBeenCalled())
+    await act(async () => {
+      failed.reject(new Error('storage unavailable'))
+      await failed.promise.catch(() => undefined)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
 
     expect(saveProgress).toBeDisabled()
     expect(advanced).toBeDisabled()
