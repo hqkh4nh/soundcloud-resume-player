@@ -14,6 +14,7 @@ export function Popup() {
   const [progress, setProgress] = useState<SavedProgress | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
   const activeRef = useRef(true)
 
   useEffect(() => {
@@ -25,15 +26,12 @@ export function Popup() {
         if (!active) return
         setSettings(state.settings)
         setProgress(state.progress)
+        setLoaded(true)
       })
       .catch(() => {
         if (!active) return
         setSettings(defaultSettings)
         setProgress(null)
-      })
-      .finally(() => {
-        if (!active) return
-        setLoaded(true)
       })
 
     return () => {
@@ -53,17 +51,24 @@ export function Popup() {
   }, [progress])
 
   function updateSetting(key: keyof ResumeSettings, value: boolean) {
-    if (!loaded) return
+    if (!loaded || saving) return
     const previous = settings
     const next = { ...settings, [key]: value }
     setSettings(next)
-    void persistPopupSettings(next).catch(() => {
-      if (!activeRef.current) return
-      setSettings(previous)
-    })
+    setSaving(true)
+    void persistPopupSettings(next)
+      .catch(() => {
+        if (!activeRef.current) return
+        setSettings(previous)
+      })
+      .finally(() => {
+        if (!activeRef.current) return
+        setSaving(false)
+      })
   }
 
   const advancedContentId = 'advanced-settings'
+  const controlsDisabled = !loaded || saving
 
   return (
     <main className="popup-shell">
@@ -96,19 +101,19 @@ export function Popup() {
         <Toggle
           label={t('saveProgress')}
           checked={settings.saveProgress}
-          disabled={!loaded}
+          disabled={controlsDisabled}
           onChange={(checked) => updateSetting('saveProgress', checked)}
         />
         <Toggle
           label={t('resumeOnlySameTrack')}
           checked={settings.resumeOnlySameTrack}
-          disabled={!loaded}
+          disabled={controlsDisabled}
           onChange={(checked) => updateSetting('resumeOnlySameTrack', checked)}
         />
         <Toggle
           label={t('autoPlayAfterResume')}
           checked={settings.autoPlayAfterResume}
-          disabled={!loaded}
+          disabled={controlsDisabled}
           onChange={(checked) => updateSetting('autoPlayAfterResume', checked)}
         />
       </section>
@@ -117,7 +122,7 @@ export function Popup() {
         <button
           className="advanced-trigger"
           type="button"
-          disabled={!loaded}
+          disabled={controlsDisabled}
           aria-expanded={expanded}
           aria-controls={advancedContentId}
           onClick={() => setExpanded((value) => !value)}
@@ -130,14 +135,14 @@ export function Popup() {
             <Toggle
               label={t('forceOldTrack')}
               checked={settings.forceOldTrack}
-              disabled={!loaded}
+              disabled={controlsDisabled}
               onChange={(checked) => updateSetting('forceOldTrack', checked)}
             />
             <p className="muted">{t('forceOldTrackHelp')}</p>
             <Toggle
               label={t('debug')}
               checked={settings.debug}
-              disabled={!loaded}
+              disabled={controlsDisabled}
               onChange={(checked) => updateSetting('debug', checked)}
             />
           </div>

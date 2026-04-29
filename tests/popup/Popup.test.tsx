@@ -39,6 +39,20 @@ describe('Popup', () => {
     expect(screen.getByRole('button', { name: /advanced/ })).toBeDisabled()
   })
 
+  it('keeps controls disabled when storage loading fails', async () => {
+    popupStorage.loadPopupState.mockRejectedValue(new Error('storage unavailable'))
+
+    render(<Popup />)
+
+    const saveProgress = screen.getByRole('checkbox', { name: 'saveProgress' })
+    const advanced = screen.getByRole('button', { name: /advanced/ })
+
+    await waitFor(() => expect(popupStorage.loadPopupState).toHaveBeenCalled())
+
+    expect(saveProgress).toBeDisabled()
+    expect(advanced).toBeDisabled()
+  })
+
   it('exposes expanded state on the advanced button after load', async () => {
     popupStorage.loadPopupState.mockResolvedValue({
       settings: {
@@ -87,6 +101,39 @@ describe('Popup', () => {
     await userEvent.click(saveProgress)
 
     await waitFor(() => expect(saveProgress).toBeChecked())
+  })
+
+  it('disables controls while a setting save is pending', async () => {
+    const pending = createDeferred<void>()
+    popupStorage.loadPopupState.mockResolvedValue({
+      settings: {
+        saveProgress: true,
+        resumeOnlySameTrack: true,
+        forceOldTrack: false,
+        autoPlayAfterResume: false,
+        debug: false,
+      },
+      progress: null,
+    })
+    popupStorage.persistPopupSettings.mockReturnValue(pending.promise)
+
+    render(<Popup />)
+
+    const saveProgress = await screen.findByRole('checkbox', { name: 'saveProgress' })
+    const resumeOnlySameTrack = screen.getByRole('checkbox', {
+      name: 'resumeOnlySameTrack',
+    })
+    await waitFor(() => expect(saveProgress).toBeEnabled())
+
+    await userEvent.click(saveProgress)
+
+    expect(saveProgress).toBeDisabled()
+    expect(resumeOnlySameTrack).toBeDisabled()
+    expect(screen.getByRole('button', { name: /advanced/ })).toBeDisabled()
+
+    pending.resolve()
+
+    await waitFor(() => expect(saveProgress).toBeEnabled())
   })
 })
 

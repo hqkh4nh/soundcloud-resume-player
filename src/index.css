@@ -111,6 +111,7 @@ input {
 
 .toggle-row span {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .toggle-row input {
