@@ -28,6 +28,9 @@ const coordinator = isTopFrame
         })
         return Boolean(response?.ok)
       },
+      logger: (event, details) => {
+        console.debug('[soundcloud-resume-player]', event, details)
+      },
     })
   : null
 

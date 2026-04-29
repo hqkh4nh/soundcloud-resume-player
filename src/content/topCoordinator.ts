@@ -9,9 +9,11 @@ type Dependencies = {
   saveProgress: (progress: SavedProgress) => Promise<void>
   sendSeek: (position: number, playAfterSeek: boolean) => Promise<boolean>
   now: () => number
+  logger?: (event: string, details: Record<string, unknown>) => void
 }
 
 const saveThrottleMs = 5000
+const missingTrackResumeAttemptLimit = 3
 
 export function createTopCoordinator(dependencies: Dependencies) {
   let settingsPromise: Promise<ResumeSettings> | null = null
@@ -21,6 +23,7 @@ export function createTopCoordinator(dependencies: Dependencies) {
   let audioReady = false
   let lastSaveAt = 0
   let pendingPosition: number | null = null
+  let missingTrackResumeAttempts = 0
 
   async function ensureResumeSettled() {
     if (resumeSettled || !audioReady) return
@@ -37,6 +40,10 @@ export function createTopCoordinator(dependencies: Dependencies) {
     const [settings, savedProgress] = await Promise.all([getSettings(), getProgress()])
     const currentTrackUrl = dependencies.readCurrentTrackUrl()
     const decision = shouldResume({ currentTrackUrl, savedProgress, settings })
+    debugLog(settings, 'resume-decision', {
+      reason: decision.reason,
+      shouldSeek: decision.shouldSeek,
+    })
 
     if (decision.shouldSeek) {
       const didSeek = await dependencies.sendSeek(decision.position, decision.shouldPlay)
@@ -45,6 +52,14 @@ export function createTopCoordinator(dependencies: Dependencies) {
       if (!didSeek) return
 
       resumeSettled = true
+      return
+    }
+
+    if (
+      decision.reason === 'missing-current-track' &&
+      missingTrackResumeAttempts < missingTrackResumeAttemptLimit - 1
+    ) {
+      missingTrackResumeAttempts += 1
       return
     }
 
@@ -57,7 +72,7 @@ export function createTopCoordinator(dependencies: Dependencies) {
   }
 
   async function saveLatestPosition(position: number, force = false) {
-    const settings = await getSettings()
+    const settings = await loadFreshSettings()
     if (!settings.saveProgress) return
 
     const trackUrl = dependencies.readCurrentTrackUrl()
@@ -73,6 +88,17 @@ export function createTopCoordinator(dependencies: Dependencies) {
   function getSettings() {
     settingsPromise ??= dependencies.loadSettings()
     return settingsPromise
+  }
+
+  function loadFreshSettings() {
+    settingsPromise = dependencies.loadSettings()
+    return settingsPromise
+  }
+
+  function debugLog(settings: ResumeSettings, event: string, details: Record<string, unknown>) {
+    if (!settings.debug) return
+
+    dependencies.logger?.(event, details)
   }
 
   function getProgress() {
