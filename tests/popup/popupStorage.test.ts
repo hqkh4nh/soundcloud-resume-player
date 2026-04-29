@@ -21,4 +21,22 @@ describe('popup storage', () => {
     expect(state.settings.resumeOnlySameTrack).toBe(true)
     expect(state.progress?.trackUrl).toBe('/artist/track')
   })
+
+  it('returns null for invalid progress', async () => {
+    const getSync = vi.fn().mockResolvedValue({
+      settings: {},
+    })
+    const getLocal = vi.fn().mockResolvedValue({
+      latestProgress: {
+        trackUrl: 'https://soundcloud.com/artist/track',
+        position: 45,
+        updatedAt: 1777377600000,
+      },
+    })
+
+    const load = createPopupStateLoader({ getSync, getLocal })
+    const state = await load()
+
+    expect(state.progress).toBeNull()
+  })
 })
