@@ -1,9 +1,11 @@
 export const pageEventName = 'soundcloud-resume-player:audio-event'
 export const commandEventName = 'soundcloud-resume-player:command'
+export const resumeHintEventName = 'soundcloud-resume-player:resume-hint'
 
 export const pageEventKind = {
   captured: 'captured',
   progress: 'progress',
+  resumeApplied: 'resume-applied',
 } as const
 
 export const runtimeMessageType = {

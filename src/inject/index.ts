@@ -1,4 +1,9 @@
-import { commandEventName, pageEventKind, pageEventName } from '../shared/messages'
+import {
+  commandEventName,
+  pageEventKind,
+  pageEventName,
+  resumeHintEventName,
+} from '../shared/messages'
 
 declare global {
   interface Window {
@@ -20,8 +25,26 @@ function patchAudio() {
   const captured = new WeakSet<HTMLAudioElement>()
   let activeAudio: HTMLAudioElement | null = null
   let lastProgressEmit = 0
+  let pendingResume: { position: number } | null = null
+  let resumeApplied = false
+
+  window.addEventListener(resumeHintEventName, (event) => {
+    if (resumeApplied) return
+    const detail = (event as CustomEvent).detail
+    if (
+      typeof detail === 'object' &&
+      detail !== null &&
+      'position' in detail &&
+      typeof (detail as { position: unknown }).position === 'number' &&
+      Number.isFinite((detail as { position: number }).position) &&
+      (detail as { position: number }).position >= 0
+    ) {
+      pendingResume = { position: (detail as { position: number }).position }
+    }
+  })
 
   window.HTMLAudioElement.prototype.play = function patchedPlay(...args) {
+    applyPendingResume(this)
     captureAudio(this)
     return originalPlay.apply(this, args)
   }
@@ -60,6 +83,31 @@ function patchAudio() {
       position: audio.currentTime,
       important,
     })
+  }
+
+  function applyPendingResume(audio: HTMLAudioElement) {
+    if (!pendingResume || resumeApplied) return
+    const targetPosition = pendingResume.position
+
+    if (audio.readyState > 0) {
+      audio.currentTime = clampPosition(targetPosition, audio.duration)
+      resumeApplied = true
+      pendingResume = null
+      emitPageEvent({ kind: pageEventKind.resumeApplied, position: audio.currentTime })
+      return
+    }
+
+    const apply = () => {
+      audio.removeEventListener('loadedmetadata', apply)
+      audio.removeEventListener('canplay', apply)
+      if (resumeApplied || !pendingResume) return
+      audio.currentTime = clampPosition(pendingResume.position, audio.duration)
+      resumeApplied = true
+      pendingResume = null
+      emitPageEvent({ kind: pageEventKind.resumeApplied, position: audio.currentTime })
+    }
+    audio.addEventListener('loadedmetadata', apply)
+    audio.addEventListener('canplay', apply)
   }
 
   function seekWhenReady(

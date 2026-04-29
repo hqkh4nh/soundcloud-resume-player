@@ -5,8 +5,10 @@ import {
   isSeekAudioMessage,
   pageEventKind,
   pageEventName,
+  resumeHintEventName,
   runtimeMessageType,
 } from '../shared/messages'
+import { shouldResume } from '../shared/resume'
 import { readCurrentTrackUrl } from '../shared/track'
 import { loadProgress, loadSettings, saveProgress } from './storage'
 import { createTopCoordinator } from './topCoordinator'
@@ -38,6 +40,44 @@ function ignoreCoordinatorRejection(promise: Promise<void>) {
   void promise.catch(() => undefined)
 }
 
+if (isTopFrame) {
+  void tryPreResume().catch(() => undefined)
+}
+
+async function tryPreResume() {
+  const [settings, progress] = await Promise.all([loadSettings(), loadProgress()])
+  if (!progress) return
+
+  for (let attempt = 0; attempt < preResumeMaxAttempts; attempt += 1) {
+    const trackUrl = readCurrentTrackUrl()
+    if (trackUrl !== null) {
+      const decision = shouldResume({
+        currentTrackUrl: trackUrl,
+        savedProgress: progress,
+        settings,
+      })
+      if (decision.shouldSeek) {
+        window.dispatchEvent(
+          new CustomEvent(resumeHintEventName, {
+            detail: { position: decision.position },
+          }),
+        )
+      }
+      return
+    }
+    await sleep(preResumePollIntervalMs)
+  }
+}
+
+const preResumeMaxAttempts = 30
+const preResumePollIntervalMs = 100
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, ms)
+  })
+}
+
 window.addEventListener(pageEventName, (event) => {
   const detail = (event as CustomEvent).detail
 
@@ -57,6 +97,13 @@ window.addEventListener(pageEventName, (event) => {
       position: detail.position,
       important: detail.important === true,
     })
+    return
+  }
+
+  if (detail?.kind === pageEventKind.resumeApplied) {
+    if (isTopFrame && coordinator) {
+      coordinator.onResumeAlreadyApplied()
+    }
   }
 })
 

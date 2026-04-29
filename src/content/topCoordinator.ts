@@ -136,6 +136,10 @@ export function createTopCoordinator(dependencies: Dependencies) {
 
       await saveLatestPosition(position, important === true)
     },
+    onResumeAlreadyApplied() {
+      resumeSettled = true
+      audioReady = true
+    },
   }
 }
 
