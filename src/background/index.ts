@@ -28,9 +28,14 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
   if (isAudioProgressMessage(message)) {
     const audioFrame = relayState.getAudioFrame(tabId)
 
-    if (audioFrame?.frameId !== frameId) {
+    if (audioFrame && audioFrame.frameId !== frameId) {
       sendResponse({ ok: false })
       return false
+    }
+
+    if (!audioFrame) {
+      relayState.setAudioFrame(tabId, frameId)
+      sendTopFrame(tabId, { type: runtimeMessageType.audioFrameReady })
     }
 
     sendTopFrame(tabId, message)

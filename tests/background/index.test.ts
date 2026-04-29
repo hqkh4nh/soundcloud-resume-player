@@ -69,6 +69,39 @@ describe('background relay', () => {
     expect(sendMessage).not.toHaveBeenCalled()
   })
 
+  it('recovers the current audio frame from progress after service worker restart', () => {
+    const result = sendFromFrame({ type: runtimeMessageType.audioProgress, position: 12 }, 3)
+
+    expect(result.returnValue).toBe(false)
+    expect(result.response).toEqual({ ok: true })
+    expect(sendMessage).toHaveBeenCalledTimes(2)
+    expect(sendMessage).toHaveBeenNthCalledWith(
+      1,
+      10,
+      { type: runtimeMessageType.audioFrameReady },
+      { frameId: 0 },
+      expect.any(Function),
+    )
+    expect(sendMessage).toHaveBeenNthCalledWith(
+      2,
+      10,
+      { type: runtimeMessageType.audioProgress, position: 12 },
+      { frameId: 0 },
+      expect.any(Function),
+    )
+  })
+
+  it('rejects progress from a different frame after restart recovery', () => {
+    sendFromFrame({ type: runtimeMessageType.audioProgress, position: 12 }, 3)
+    sendMessage.mockClear()
+
+    const result = sendFromFrame({ type: runtimeMessageType.audioProgress, position: 13 }, 7)
+
+    expect(result.returnValue).toBe(false)
+    expect(result.response).toEqual({ ok: false })
+    expect(sendMessage).not.toHaveBeenCalled()
+  })
+
   function sendFromFrame(message: unknown, frameId: number) {
     let response: { ok: boolean } | undefined
     const returnValue = listener(message, { tab: { id: 10 }, frameId }, (value) => {
