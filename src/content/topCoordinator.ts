@@ -17,6 +17,7 @@ export function createTopCoordinator(dependencies: Dependencies) {
   let settingsPromise: Promise<ResumeSettings> | null = null
   let progressPromise: Promise<SavedProgress | null> | null = null
   let resumeSettled = false
+  let settlingPromise: Promise<void> | null = null
   let audioReady = false
   let lastSaveAt = 0
   let pendingPosition: number | null = null
@@ -24,12 +25,27 @@ export function createTopCoordinator(dependencies: Dependencies) {
   async function ensureResumeSettled() {
     if (resumeSettled || !audioReady) return
 
+    settlingPromise ??= settleResume().finally(() => {
+      settlingPromise = null
+    })
+    await settlingPromise
+  }
+
+  async function settleResume() {
+    if (resumeSettled || !audioReady) return
+
     const [settings, savedProgress] = await Promise.all([getSettings(), getProgress()])
     const currentTrackUrl = dependencies.readCurrentTrackUrl()
     const decision = shouldResume({ currentTrackUrl, savedProgress, settings })
 
     if (decision.shouldSeek) {
-      await dependencies.sendSeek(decision.position, decision.shouldPlay)
+      const didSeek = await dependencies.sendSeek(decision.position, decision.shouldPlay)
+      pendingPosition = null
+
+      if (!didSeek) return
+
+      resumeSettled = true
+      return
     }
 
     resumeSettled = true
@@ -70,10 +86,9 @@ export function createTopCoordinator(dependencies: Dependencies) {
       await ensureResumeSettled()
     },
     async onAudioProgress(position: number) {
-      await ensureResumeSettled()
-
       if (!resumeSettled) {
         pendingPosition = position
+        await ensureResumeSettled()
         return
       }
 

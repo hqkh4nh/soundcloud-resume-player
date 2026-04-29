@@ -31,6 +31,10 @@ const coordinator = isTopFrame
     })
   : null
 
+function ignoreCoordinatorRejection(promise: Promise<void>) {
+  void promise.catch(() => undefined)
+}
+
 window.addEventListener(pageEventName, (event) => {
   const detail = (event as CustomEvent).detail
 
@@ -54,12 +58,12 @@ window.addEventListener(pageEventName, (event) => {
 
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (isTopFrame && coordinator && isAudioFrameReadyMessage(message)) {
-    void coordinator.onAudioFrameReady()
+    ignoreCoordinatorRejection(coordinator.onAudioFrameReady())
     return
   }
 
   if (isTopFrame && coordinator && isAudioProgressMessage(message)) {
-    void coordinator.onAudioProgress(message.position)
+    ignoreCoordinatorRejection(coordinator.onAudioProgress(message.position))
     return
   }
 
