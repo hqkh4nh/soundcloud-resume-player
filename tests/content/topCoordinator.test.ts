@@ -156,6 +156,89 @@ describe('top coordinator', () => {
     expect(sendSeek).toHaveBeenCalledWith(87, false)
   })
 
+  it('self-schedules resume retry when the current track DOM appears after audio ready', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const readCurrentTrackUrl = vi
+        .fn<() => string | null>()
+        .mockReturnValueOnce(null)
+        .mockReturnValue('/artist/track')
+      const sendSeek = vi.fn().mockResolvedValue(true)
+      const coordinator = createTopCoordinator({
+        readCurrentTrackUrl,
+        loadSettings: async () => ({
+          saveProgress: true,
+          resumeOnlySameTrack: true,
+          forceOldTrack: false,
+          autoPlayAfterResume: false,
+          debug: false,
+        }),
+        loadProgress: async () => ({
+          trackUrl: '/artist/track',
+          position: 87,
+          updatedAt: 1777377600000,
+        }),
+        saveProgress: async () => undefined,
+        sendSeek,
+        now: () => 1777377605000,
+      })
+
+      await coordinator.onAudioFrameReady()
+      await vi.runOnlyPendingTimersAsync()
+
+      expect(readCurrentTrackUrl).toHaveBeenCalledTimes(2)
+      expect(sendSeek).toHaveBeenCalledTimes(1)
+      expect(sendSeek).toHaveBeenCalledWith(87, false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('fails closed after bounded self-scheduled missing-track retries', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const readCurrentTrackUrl = vi.fn<() => string | null>().mockReturnValue(null)
+      const sendSeek = vi.fn().mockResolvedValue(true)
+      const saveProgress = vi.fn().mockResolvedValue(undefined)
+      const coordinator = createTopCoordinator({
+        readCurrentTrackUrl,
+        loadSettings: async () => ({
+          saveProgress: true,
+          resumeOnlySameTrack: true,
+          forceOldTrack: false,
+          autoPlayAfterResume: false,
+          debug: false,
+        }),
+        loadProgress: async () => ({
+          trackUrl: '/artist/track',
+          position: 87,
+          updatedAt: 1777377600000,
+        }),
+        saveProgress,
+        sendSeek,
+        now: () => 1777377605000,
+      })
+
+      await coordinator.onAudioFrameReady()
+      await vi.runOnlyPendingTimersAsync()
+      await vi.runOnlyPendingTimersAsync()
+      await vi.runOnlyPendingTimersAsync()
+
+      expect(readCurrentTrackUrl).toHaveBeenCalledTimes(3)
+      expect(sendSeek).not.toHaveBeenCalled()
+
+      await coordinator.onAudioProgress(3)
+
+      expect(readCurrentTrackUrl).toHaveBeenCalledTimes(4)
+      expect(sendSeek).not.toHaveBeenCalled()
+      expect(saveProgress).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reloads save settings before saving later progress', async () => {
     const sendSeek = vi.fn().mockResolvedValue(true)
     const saveProgress = vi.fn().mockResolvedValue(undefined)

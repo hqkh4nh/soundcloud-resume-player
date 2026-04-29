@@ -10,9 +10,11 @@ type Dependencies = {
   sendSeek: (position: number, playAfterSeek: boolean) => Promise<boolean>
   now: () => number
   logger?: (event: string, details: Record<string, unknown>) => void
+  scheduleRetry?: (callback: () => void, delayMs: number) => void
 }
 
 const saveThrottleMs = 5000
+const missingTrackResumeRetryDelayMs = 250
 const missingTrackResumeAttemptLimit = 3
 
 export function createTopCoordinator(dependencies: Dependencies) {
@@ -60,6 +62,7 @@ export function createTopCoordinator(dependencies: Dependencies) {
       missingTrackResumeAttempts < missingTrackResumeAttemptLimit - 1
     ) {
       missingTrackResumeAttempts += 1
+      scheduleResumeRetry()
       return
     }
 
@@ -101,6 +104,14 @@ export function createTopCoordinator(dependencies: Dependencies) {
     dependencies.logger?.(event, details)
   }
 
+  function scheduleResumeRetry() {
+    const schedule = dependencies.scheduleRetry ?? defaultScheduleRetry
+
+    schedule(() => {
+      void ensureResumeSettled()
+    }, missingTrackResumeRetryDelayMs)
+  }
+
   function getProgress() {
     progressPromise ??= dependencies.loadProgress()
     return progressPromise
@@ -121,4 +132,8 @@ export function createTopCoordinator(dependencies: Dependencies) {
       await saveLatestPosition(position)
     },
   }
+}
+
+function defaultScheduleRetry(callback: () => void, delayMs: number) {
+  globalThis.setTimeout(callback, delayMs)
 }
