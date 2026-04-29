@@ -26,6 +26,7 @@ export function createTopCoordinator(dependencies: Dependencies) {
   let lastSavedTrackUrl: string | null = null
   let pendingPosition: number | null = null
   let missingTrackResumeAttempts = 0
+  let saveQueue: Promise<void> = Promise.resolve()
 
   async function ensureResumeSettled() {
     if (resumeSettled || !audioReady) return
@@ -79,7 +80,14 @@ export function createTopCoordinator(dependencies: Dependencies) {
     }
   }
 
-  async function saveLatestPosition(position: number, force = false) {
+  function saveLatestPosition(position: number, force = false): Promise<void> {
+    // Serialize storage writes so concurrent important events (e.g., pause + seeked
+    // firing back-to-back) don't race against each other and produce duplicate writes.
+    saveQueue = saveQueue.then(() => doSaveLatestPosition(position, force))
+    return saveQueue
+  }
+
+  async function doSaveLatestPosition(position: number, force: boolean) {
     const settings = await dependencies.loadSettings()
     if (!settings.saveProgress) return
 
