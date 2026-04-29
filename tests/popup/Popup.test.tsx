@@ -140,6 +140,44 @@ describe('Popup', () => {
 
     await waitFor(() => expect(saveProgress).toBeEnabled())
   })
+
+  it('shows a retry banner when storage load fails and recovers on retry', async () => {
+    const failed = createDeferred<PopupState>()
+    const succeed = createDeferred<PopupState>()
+    popupStorage.loadPopupState
+      .mockReturnValueOnce(failed.promise)
+      .mockReturnValueOnce(succeed.promise)
+
+    render(<Popup />)
+
+    await act(async () => {
+      failed.reject(new Error('storage unavailable'))
+      await failed.promise.catch(() => undefined)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    const retry = await screen.findByRole('button', { name: 'retry' })
+    expect(screen.getByText('loadError')).toBeInTheDocument()
+
+    await userEvent.click(retry)
+
+    await act(async () => {
+      succeed.resolve({
+        settings: {
+          saveProgress: true,
+          resumeOnlySameTrack: true,
+          forceOldTrack: false,
+          autoPlayAfterResume: false,
+          debug: false,
+        },
+        progress: null,
+      })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(screen.queryByText('loadError')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'saveProgress' })).toBeEnabled()
+  })
 })
 
 function createDeferred<T>() {

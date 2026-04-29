@@ -13,6 +13,6 @@
   "debug": { "message": "Nhật ký debug" },
   "position": { "message": "Vị trí" },
   "updated": { "message": "Cập nhật" },
-  "enabled": { "message": "Bật" },
-  "disabled": { "message": "Tắt" }
+  "loadError": { "message": "Không tải được cài đặt." },
+  "retry": { "message": "Thử lại" }
 }

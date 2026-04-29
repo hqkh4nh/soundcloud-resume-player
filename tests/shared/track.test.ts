@@ -20,4 +20,9 @@ describe('track identity', () => {
     expect(normalizeSoundCloudTrackUrl('https://example.com/artist/track')).toBeNull()
     expect(currentTrackSelector).toBe('a.playbackSoundBadge__titleLink[href]')
   })
+
+  it('rejects SoundCloud playlist set paths', () => {
+    expect(normalizeSoundCloudTrackUrl('/sets/my-playlist')).toBeNull()
+    expect(normalizeSoundCloudTrackUrl('https://soundcloud.com/sets/my-playlist')).toBeNull()
+  })
 })

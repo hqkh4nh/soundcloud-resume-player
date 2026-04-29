@@ -13,6 +13,6 @@
   "debug": { "message": "Debug logs" },
   "position": { "message": "Position" },
   "updated": { "message": "Updated" },
-  "enabled": { "message": "Enabled" },
-  "disabled": { "message": "Disabled" }
+  "loadError": { "message": "Could not load settings." },
+  "retry": { "message": "Retry" }
 }

@@ -6,10 +6,6 @@ export async function loadSettings(): Promise<ResumeSettings> {
   return mergeSettings(data[settingsStorageKey])
 }
 
-export async function saveSettings(settings: ResumeSettings): Promise<void> {
-  await chrome.storage.sync.set({ [settingsStorageKey]: settings })
-}
-
 export async function loadProgress(): Promise<SavedProgress | null> {
   const data = await chrome.storage.local.get(progressStorageKey)
   const value = data[progressStorageKey]

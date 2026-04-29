@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatPosition } from '../shared/time'
 import type { SavedProgress } from '../shared/progress'
 import type { ResumeSettings } from '../shared/settings'
@@ -15,30 +15,35 @@ export function Popup() {
   const [expanded, setExpanded] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const activeRef = useRef(true)
 
-  useEffect(() => {
-    let active = true
-    activeRef.current = true
-
+  const runLoad = useCallback(() => {
     void loadPopupState()
       .then((state) => {
-        if (!active) return
+        if (!activeRef.current) return
         setSettings(state.settings)
         setProgress(state.progress)
         setLoaded(true)
+        setLoadError(false)
       })
       .catch(() => {
-        if (!active) return
+        if (!activeRef.current) return
         setSettings(defaultSettings)
         setProgress(null)
+        setLoaded(false)
+        setLoadError(true)
       })
+  }, [])
+
+  useEffect(() => {
+    activeRef.current = true
+    runLoad()
 
     return () => {
-      active = false
       activeRef.current = false
     }
-  }, [])
+  }, [runLoad])
 
   const updatedLabel = useMemo(() => {
     if (!progress) return ''
@@ -79,6 +84,15 @@ export function Popup() {
         </div>
         <span className="status-dot" aria-hidden="true" />
       </header>
+
+      {loadError ? (
+        <section className="panel error">
+          <p>{t('loadError')}</p>
+          <button type="button" onClick={runLoad}>
+            {t('retry')}
+          </button>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="section-title">{t('lastSaved')}</div>

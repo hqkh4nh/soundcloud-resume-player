@@ -23,6 +23,7 @@ export function normalizeSoundCloudTrackUrl(value: string): string | null {
   const segments = pathname.split('/').filter(Boolean)
   if (segments.length < 2) return null
   if (segments.some((segment) => segment.length === 0)) return null
+  if (segments[0] === 'sets') return null
 
   return pathname
 }
