@@ -1,0 +1,18 @@
+{
+  "extensionName": { "message": "SoundCloud Resume Player" },
+  "extensionDescription": { "message": "Khôi phục tiến độ phát nhạc SoundCloud an toàn." },
+  "statusReady": { "message": "Sẵn sàng" },
+  "lastSaved": { "message": "Đã lưu gần nhất" },
+  "noProgress": { "message": "Chưa có tiến độ đã lưu" },
+  "saveProgress": { "message": "Lưu tiến độ" },
+  "resumeOnlySameTrack": { "message": "Chỉ khôi phục đúng bài" },
+  "autoPlayAfterResume": { "message": "Tự phát sau khi khôi phục" },
+  "advanced": { "message": "Nâng cao" },
+  "forceOldTrack": { "message": "Ép bài cũ" },
+  "forceOldTrackHelp": { "message": "Đang được khóa an toàn trong phiên bản này để tránh nhảy bài ngoài ý muốn." },
+  "debug": { "message": "Nhật ký debug" },
+  "position": { "message": "Vị trí" },
+  "updated": { "message": "Cập nhật" },
+  "enabled": { "message": "Bật" },
+  "disabled": { "message": "Tắt" }
+}

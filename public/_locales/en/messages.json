@@ -1,0 +1,18 @@
+{
+  "extensionName": { "message": "SoundCloud Resume Player" },
+  "extensionDescription": { "message": "Restore SoundCloud playback progress safely." },
+  "statusReady": { "message": "Ready" },
+  "lastSaved": { "message": "Last saved" },
+  "noProgress": { "message": "No saved progress" },
+  "saveProgress": { "message": "Save progress" },
+  "resumeOnlySameTrack": { "message": "Resume same track only" },
+  "autoPlayAfterResume": { "message": "Autoplay after resume" },
+  "advanced": { "message": "Advanced" },
+  "forceOldTrack": { "message": "Force old track" },
+  "forceOldTrackHelp": { "message": "Guarded in this version to prevent unexpected track jumps." },
+  "debug": { "message": "Debug logs" },
+  "position": { "message": "Position" },
+  "updated": { "message": "Updated" },
+  "enabled": { "message": "Enabled" },
+  "disabled": { "message": "Disabled" }
+}
