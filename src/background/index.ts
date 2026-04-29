@@ -66,8 +66,15 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
       { frameId: audioFrame.frameId },
       () => {
         const error = chrome.runtime.lastError
-        if (error) relayState.clearTab(tabId)
-        sendResponse({ ok: !error })
+        if (error && !isPortClosedError(error.message)) {
+          relayState.clearTab(tabId)
+          sendResponse({ ok: false })
+          return
+        }
+        // Treat both "no error" and "port closed without response" as success: the
+        // audio-frame listener dispatches the seek synchronously into the page, so a
+        // missing response does not mean the seek failed.
+        sendResponse({ ok: true })
       },
     )
     return true
@@ -81,9 +88,19 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   relayState.clearTab(tabId)
 })
 
+function isPortClosedError(message: string | undefined): boolean {
+  // "The message port closed before a response was received." fires when the receiver's
+  // onMessage listener returns without calling sendResponse. Expected for fire-and-forget
+  // listeners; not an actionable error.
+  return typeof message === 'string' && message.includes('message port closed')
+}
+
 function sendTopFrame(
   tabId: number,
-  message: Extract<RuntimeMessage, { type: typeof runtimeMessageType.audioFrameReady | typeof runtimeMessageType.audioProgress }>,
+  message: Extract<
+    RuntimeMessage,
+    { type: typeof runtimeMessageType.audioFrameReady | typeof runtimeMessageType.audioProgress }
+  >,
 ) {
   chrome.tabs.sendMessage(tabId, message, { frameId: 0 }, () => {
     void chrome.runtime.lastError

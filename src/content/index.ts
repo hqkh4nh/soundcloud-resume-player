@@ -60,15 +60,17 @@ window.addEventListener(pageEventName, (event) => {
   }
 })
 
-chrome.runtime.onMessage.addListener((message: unknown) => {
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   if (isTopFrame && coordinator && isAudioFrameReadyMessage(message)) {
     ignoreCoordinatorRejection(coordinator.onAudioFrameReady())
-    return
+    sendResponse({ ok: true })
+    return false
   }
 
   if (isTopFrame && coordinator && isAudioProgressMessage(message)) {
     ignoreCoordinatorRejection(coordinator.onAudioProgress(message.position, message.important))
-    return
+    sendResponse({ ok: true })
+    return false
   }
 
   if (isSeekAudioMessage(message)) {
@@ -80,5 +82,9 @@ chrome.runtime.onMessage.addListener((message: unknown) => {
         },
       }),
     )
+    sendResponse({ ok: true })
+    return false
   }
+
+  return false
 })
