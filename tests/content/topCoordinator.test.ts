@@ -373,4 +373,120 @@ describe('top coordinator', () => {
 
     expect(logger).not.toHaveBeenCalled()
   })
+
+  it('saves immediately after the current track changes mid-session', async () => {
+    let currentTrack = '/artist/track-a'
+    const sendSeek = vi.fn().mockResolvedValue(true)
+    const saveProgress = vi.fn().mockResolvedValue(undefined)
+    const now = vi
+      .fn<() => number>()
+      .mockReturnValueOnce(1777377605000)
+      .mockReturnValueOnce(1777377607000)
+    const coordinator = createTopCoordinator({
+      readCurrentTrackUrl: () => currentTrack,
+      loadSettings: async () => ({
+        saveProgress: true,
+        resumeOnlySameTrack: true,
+        forceOldTrack: false,
+        autoPlayAfterResume: false,
+        debug: false,
+      }),
+      loadProgress: async () => ({
+        trackUrl: '/artist/track-a',
+        position: 87,
+        updatedAt: 1777377600000,
+      }),
+      saveProgress,
+      sendSeek,
+      now,
+    })
+
+    await coordinator.onAudioFrameReady()
+    await coordinator.onAudioProgress(3)
+
+    currentTrack = '/artist/track-b'
+    await coordinator.onAudioProgress(2)
+
+    expect(saveProgress).toHaveBeenCalledTimes(2)
+    expect(saveProgress).toHaveBeenNthCalledWith(1, {
+      trackUrl: '/artist/track-a',
+      position: 3,
+      updatedAt: 1777377605000,
+    })
+    expect(saveProgress).toHaveBeenNthCalledWith(2, {
+      trackUrl: '/artist/track-b',
+      position: 2,
+      updatedAt: 1777377607000,
+    })
+  })
+
+  it('discards pre-seek pending progress after a successful resume seek', async () => {
+    const sendSeek = vi.fn().mockResolvedValue(true)
+    const saveProgress = vi.fn().mockResolvedValue(undefined)
+    const coordinator = createTopCoordinator({
+      readCurrentTrackUrl: () => '/artist/track',
+      loadSettings: async () => ({
+        saveProgress: true,
+        resumeOnlySameTrack: true,
+        forceOldTrack: false,
+        autoPlayAfterResume: false,
+        debug: false,
+      }),
+      loadProgress: async () => ({
+        trackUrl: '/artist/track',
+        position: 87,
+        updatedAt: 1777377600000,
+      }),
+      saveProgress,
+      sendSeek,
+      now: () => 1777377605000,
+    })
+
+    await coordinator.onAudioProgress(2)
+    await coordinator.onAudioFrameReady()
+
+    expect(sendSeek).toHaveBeenCalledTimes(1)
+    expect(saveProgress).not.toHaveBeenCalled()
+  })
+
+  it('reloads settings on every resume retry', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const readCurrentTrackUrl = vi
+        .fn<() => string | null>()
+        .mockReturnValueOnce(null)
+        .mockReturnValueOnce(null)
+        .mockReturnValue('/artist/track')
+      const sendSeek = vi.fn().mockResolvedValue(true)
+      const loadSettings = vi.fn().mockResolvedValue({
+        saveProgress: true,
+        resumeOnlySameTrack: true,
+        forceOldTrack: false,
+        autoPlayAfterResume: false,
+        debug: false,
+      })
+      const coordinator = createTopCoordinator({
+        readCurrentTrackUrl,
+        loadSettings,
+        loadProgress: async () => ({
+          trackUrl: '/artist/track',
+          position: 87,
+          updatedAt: 1777377600000,
+        }),
+        saveProgress: async () => undefined,
+        sendSeek,
+        now: () => 1777377605000,
+      })
+
+      await coordinator.onAudioFrameReady()
+      await vi.runOnlyPendingTimersAsync()
+      await vi.runOnlyPendingTimersAsync()
+
+      expect(loadSettings.mock.calls.length).toBeGreaterThanOrEqual(3)
+      expect(sendSeek).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

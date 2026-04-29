@@ -18,12 +18,12 @@ const missingTrackResumeRetryDelayMs = 250
 const missingTrackResumeAttemptLimit = 3
 
 export function createTopCoordinator(dependencies: Dependencies) {
-  let settingsPromise: Promise<ResumeSettings> | null = null
   let progressPromise: Promise<SavedProgress | null> | null = null
   let resumeSettled = false
   let settlingPromise: Promise<void> | null = null
   let audioReady = false
   let lastSaveAt = 0
+  let lastSavedTrackUrl: string | null = null
   let pendingPosition: number | null = null
   let missingTrackResumeAttempts = 0
 
@@ -39,7 +39,10 @@ export function createTopCoordinator(dependencies: Dependencies) {
   async function settleResume() {
     if (resumeSettled || !audioReady) return
 
-    const [settings, savedProgress] = await Promise.all([getSettings(), getProgress()])
+    const [settings, savedProgress] = await Promise.all([
+      dependencies.loadSettings(),
+      getProgress(),
+    ])
     const currentTrackUrl = dependencies.readCurrentTrackUrl()
     const decision = shouldResume({ currentTrackUrl, savedProgress, settings })
     debugLog(settings, 'resume-decision', {
@@ -49,6 +52,8 @@ export function createTopCoordinator(dependencies: Dependencies) {
 
     if (decision.shouldSeek) {
       const didSeek = await dependencies.sendSeek(decision.position, decision.shouldPlay)
+      // Drop any pre-seek pending position. The post-seek timeupdate event will arrive
+      // shortly with the post-seek position, which is more accurate than the pre-seek value.
       pendingPosition = null
 
       if (!didSeek) return
@@ -75,27 +80,19 @@ export function createTopCoordinator(dependencies: Dependencies) {
   }
 
   async function saveLatestPosition(position: number, force = false) {
-    const settings = await loadFreshSettings()
+    const settings = await dependencies.loadSettings()
     if (!settings.saveProgress) return
 
     const trackUrl = dependencies.readCurrentTrackUrl()
     if (!trackUrl) return
 
+    const trackChanged = lastSavedTrackUrl !== null && trackUrl !== lastSavedTrackUrl
     const now = dependencies.now()
-    if (!force && now - lastSaveAt < saveThrottleMs) return
+    if (!force && !trackChanged && now - lastSaveAt < saveThrottleMs) return
 
     lastSaveAt = now
+    lastSavedTrackUrl = trackUrl
     await dependencies.saveProgress({ trackUrl, position, updatedAt: now })
-  }
-
-  function getSettings() {
-    settingsPromise ??= dependencies.loadSettings()
-    return settingsPromise
-  }
-
-  function loadFreshSettings() {
-    settingsPromise = dependencies.loadSettings()
-    return settingsPromise
   }
 
   function debugLog(settings: ResumeSettings, event: string, details: Record<string, unknown>) {
